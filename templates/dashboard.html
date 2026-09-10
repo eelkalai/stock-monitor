@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Stock Monitor{% endblock %}
+{% block content %}
+  <h1>Watchlist</h1>
+
+  <form class="add-ticker-form" method="post" action="{{ url_for('add_ticker') }}">
+    <input type="text" name="symbol" placeholder="Add symbol (e.g. AAPL)" autocomplete="off" required>
+    <button type="submit">Add</button>
+  </form>
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  {% if tickers %}
+  <table class="ticker-table">
+    <thead>
+      <tr><th>Symbol</th><th>Price</th><th>Change</th><th>Updated</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for t in tickers %}
+      <tr>
+        <td><a href="{{ url_for('ticker_detail', ticker_id=t.id) }}">{{ t.symbol }}</a></td>
+        <td>{% if t.last_price is not none %}${{ "%.2f"|format(t.last_price) }}{% else %}—{% endif %}</td>
+        <td class="{{ 'up' if (t.last_change_pct or 0) >= 0 else 'down' }}">
+          {% if t.last_change_pct is not none %}{{ "%.2f"|format(t.last_change_pct) }}%{% else %}—{% endif %}
+        </td>
+        <td>{{ t.updated_at.strftime('%H:%M:%S') if t.updated_at else 'pending...' }}</td>
+        <td>
+          <form method="post" action="{{ url_for('delete_ticker', ticker_id=t.id) }}">
+            <button type="submit" class="link-btn">remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No tickers yet. Add one above to start monitoring.</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,106 @@
+* { box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  background: #f7f8fa;
+  color: #1a1d21;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: #1a1d21;
+}
+.brand {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+.notif-link {
+  color: #cfd3d8;
+  text-decoration: none;
+  position: relative;
+}
+.badge {
+  background: #e5484d;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 0.75rem;
+  margin-left: 6px;
+}
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+}
+h1 { margin-top: 0; }
+.add-ticker-form, .alert-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+input, select, button {
+  font-size: 0.95rem;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #d5d8dc;
+}
+button {
+  background: #2f6fed;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+button:hover { background: #2559c4; }
+.link-btn {
+  background: none;
+  border: none;
+  color: #8a8f98;
+  text-decoration: underline;
+  padding: 0;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.error { color: #e5484d; }
+.empty { color: #8a8f98; }
+.ticker-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ticker-table th, .ticker-table td {
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid #eef0f2;
+}
+.ticker-table a { color: #2f6fed; text-decoration: none; font-weight: 600; }
+.up { color: #1a9c5b; }
+.down { color: #e5484d; }
+.price-line { font-size: 1.6rem; font-weight: 600; }
+.price-line span { font-size: 1rem; margin-left: 10px; }
+.period-links { display: flex; gap: 10px; margin-bottom: 12px; }
+.period-links a {
+  text-decoration: none;
+  color: #8a8f98;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+.period-links a.active { background: #2f6fed; color: #fff; }
+canvas { background: #fff; border-radius: 8px; padding: 10px; margin-bottom: 24px; }
+.alert-list, .notification-list { list-style: none; padding: 0; }
+.alert-list li, .notification-list li {
+  background: #fff;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.alert-list li.inactive { color: #8a8f98; text-decoration: line-through; }
+.notification-list .time { color: #8a8f98; margin-right: 10px; font-size: 0.85rem; }
