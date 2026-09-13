@@ -12,6 +12,17 @@ python3 -m venv .venv
 
 App runs at http://127.0.0.1:5000. There are no lint, test, or build commands configured — no test suite exists yet.
 
+## Product overview
+
+Local single-user Flask app for tracking a stock watchlist. Current capabilities:
+
+- **Watchlist**: add a ticker by symbol (validated against Yahoo Finance before saving, rejects unknown symbols inline), remove a ticker (cascades its alerts), dashboard lists all tickers alphabetically with cached last price and % change.
+- **Price data**: background poller refreshes every ticker's price/change every 60s and caches it — the dashboard always reads from cache, never live, except when adding a ticker. Per-ticker historical chart with selectable range (1mo/3mo/6mo/1y/5y), fetched live per request. Any Yahoo Finance failure/rate-limit degrades to an empty result instead of erroring the page.
+- **Alerts**: set an "above"/"below" price threshold per ticker, delete an alert. One-shot — once triggered the alert deactivates and won't re-fire.
+- **Notifications**: bell icon with unread-count badge (polled via `/api/notifications/unread-count`), notifications page lists triggered alerts newest-first and marks them all read on view.
+
+Not present: no auth/multi-user support, no tests, no JSON API beyond the one unread-count endpoint, no editing of existing tickers/alerts (only add/delete). Any change to capabilities, design, or scope should be reflected in this section so it stays the source of truth for what the product currently does.
+
 ## Architecture
 
 Single-process Flask app, four modules:
