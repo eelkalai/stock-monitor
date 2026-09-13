@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Portfolio - Stock Monitor{% endblock %}
+{% block content %}
+  <h1>Portfolio</h1>
+
+  <form class="add-ticker-form" method="post" action="{{ url_for('buy_holding') }}">
+    <input type="text" name="symbol" placeholder="Symbol (e.g. AAPL)" autocomplete="off" required>
+    <input type="number" step="0.0001" min="0" name="quantity" placeholder="Quantity" required>
+    <input type="number" step="0.01" min="0" name="price" placeholder="Price (default: current)">
+    <button type="submit">Buy</button>
+  </form>
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <div class="portfolio-summary">
+    <span>Market value: ${{ "%.2f"|format(total_value) }}</span>
+    <span>Cost basis: ${{ "%.2f"|format(total_cost) }}</span>
+    <span class="{{ 'up' if total_unrealized_pl >= 0 else 'down' }}">Unrealized: ${{ "%.2f"|format(total_unrealized_pl) }}</span>
+    <span class="{{ 'up' if total_realized_pl >= 0 else 'down' }}">Realized: ${{ "%.2f"|format(total_realized_pl) }}</span>
+  </div>
+
+  {% if snapshots|length >= 2 %}
+  <canvas id="portfolio-chart" height="90"
+          data-labels='{{ snapshot_labels|tojson }}'
+          data-values='{{ snapshots|map(attribute="total_value")|list|tojson }}'
+          data-costs='{{ snapshots|map(attribute="total_cost")|list|tojson }}'></canvas>
+  {% else %}
+  <p class="empty">Not enough history yet for a chart &mdash; check back after a couple of polling cycles.</p>
+  {% endif %}
+
+  {% if rows %}
+  <div class="split-view">
+    <div class="list-pane" id="list-pane">
+      <table class="ticker-table">
+        <thead>
+          <tr><th>Symbol</th><th>Qty</th><th>Avg cost</th><th>Price</th><th>Unrealized</th></tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="{{ 'selected' if r.holding.symbol == selected_symbol }}">
+            <td><a href="{{ url_for('portfolio', selected=r.holding.symbol) }}">{{ r.holding.symbol }}</a></td>
+            <td>{{ "%g"|format(r.holding.quantity) }}</td>
+            <td>${{ "%.2f"|format(r.holding.avg_cost) }}</td>
+            <td>{% if r.price is not none %}${{ "%.2f"|format(r.price) }}{% else %}—{% endif %}</td>
+            <td class="{{ 'up' if (r.unrealized_pl or 0) >= 0 else 'down' }}">
+              {% if r.unrealized_pl is not none %}${{ "%.2f"|format(r.unrealized_pl) }} ({{ "%.1f"|format(r.unrealized_pct) }}%){% else %}—{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="detail-pane" id="detail-pane">
+      {% if selected_row %}
+        <h2>{{ selected_row.holding.symbol }}</h2>
+        <p class="price-line">
+          {% if selected_row.price is not none %}${{ "%.2f"|format(selected_row.price) }}{% endif %}
+        </p>
+        <p class="detail-meta">
+          holding {{ "%g"|format(selected_row.holding.quantity) }} @ avg ${{ "%.2f"|format(selected_row.holding.avg_cost) }}
+        </p>
+        <canvas id="chart" height="90"
+                data-history='{{ selected_history|tojson }}'
+                data-label="{{ selected_row.holding.symbol }} close"></canvas>
+        <h3>Sell</h3>
+        <form class="alert-form" method="post" action="{{ url_for('sell_holding', holding_id=selected_row.holding.id) }}">
+          <input type="number" step="0.0001" min="0" max="{{ selected_row.holding.quantity }}" name="quantity" placeholder="Quantity" required>
+          <input type="number" step="0.01" min="0" name="price" placeholder="Price (default: current)">
+          <button type="submit">Sell</button>
+        </form>
+      {% else %}
+      <p class="empty">Select a holding to see details and sell.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <p class="empty">No holdings yet. Buy a stock above to start tracking.</p>
+  {% endif %}
+
+  <h2>Closed positions</h2>
+  {% if closed %}
+  <table class="ticker-table">
+    <thead>
+      <tr><th>Symbol</th><th>Qty</th><th>Avg cost</th><th>Sell price</th><th>Realized P&amp;L</th><th>Sold</th></tr>
+    </thead>
+    <tbody>
+      {% for t in closed %}
+      <tr>
+        <td>{{ t.symbol }}</td>
+        <td>{{ "%g"|format(t.quantity) }}</td>
+        <td>${{ "%.2f"|format(t.avg_cost) }}</td>
+        <td>${{ "%.2f"|format(t.sell_price) }}</td>
+        <td class="{{ 'up' if t.realized_pl >= 0 else 'down' }}">${{ "%.2f"|format(t.realized_pl) }}</td>
+        <td>{{ t.sold_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No closed trades yet.</p>
+  {% endif %}
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="{{ url_for('static', filename='split-view.js') }}" defer></script>
+  <script>
+    (function () {
+      const canvas = document.getElementById("portfolio-chart");
+      if (!canvas || typeof Chart === "undefined") return;
+      new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: JSON.parse(canvas.dataset.labels),
+          datasets: [
+            { label: "Value", data: JSON.parse(canvas.dataset.values), borderColor: "#2f6fed", pointRadius: 0, tension: 0.15 },
+            { label: "Cost", data: JSON.parse(canvas.dataset.costs), borderColor: "#8a8f98", pointRadius: 0, tension: 0.15, borderDash: [4, 4] },
+          ],
+        },
+        options: { scales: { x: { ticks: { maxTicksLimit: 8 } } } },
+      });
+    })();
+  </script>
+{% endblock %}

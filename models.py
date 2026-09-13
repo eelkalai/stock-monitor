@@ -29,3 +29,28 @@ class Notification(db.Model):
     message = db.Column(db.String(256), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     read = db.Column(db.Boolean, default=False, nullable=False)
+
+
+class Holding(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    symbol = db.Column(db.String(16), unique=True, nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    avg_cost = db.Column(db.Float, nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class RealizedTrade(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    symbol = db.Column(db.String(16), nullable=False)
+    quantity = db.Column(db.Float, nullable=False)
+    avg_cost = db.Column(db.Float, nullable=False)
+    sell_price = db.Column(db.Float, nullable=False)
+    realized_pl = db.Column(db.Float, nullable=False)
+    sold_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class PortfolioSnapshot(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    taken_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    total_value = db.Column(db.Float, nullable=False)
+    total_cost = db.Column(db.Float, nullable=False)

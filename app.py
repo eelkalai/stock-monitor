@@ -1,8 +1,9 @@
 import os
+from datetime import datetime, timezone
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
-from models import Alert, Notification, Ticker, db
+from models import Alert, Holding, Notification, PortfolioSnapshot, RealizedTrade, Ticker, db
 from scheduler import start_scheduler
 from screeners import list_screeners, run_screener
 from stock_data import fetch_history, fetch_quote, symbol_exists
@@ -195,6 +196,157 @@ def run_screener_route(name):
         results=results,
         error=error,
     )
+
+
+def _current_price(symbol):
+    ticker = Ticker.query.filter_by(symbol=symbol).first()
+    if ticker and ticker.last_price is not None:
+        return ticker.last_price
+    price, _ = fetch_quote(symbol)
+    return price
+
+
+def _portfolio_context(selected_symbol=None, period="6mo", error=None):
+    holdings = Holding.query.order_by(Holding.symbol).all()
+    closed = RealizedTrade.query.order_by(RealizedTrade.sold_at.desc()).all()
+    snapshots = PortfolioSnapshot.query.order_by(PortfolioSnapshot.taken_at).all()
+
+    rows = []
+    total_value = 0.0
+    total_cost = 0.0
+    for holding in holdings:
+        price = _current_price(holding.symbol)
+        market_value = (price or 0.0) * holding.quantity
+        cost_basis = holding.avg_cost * holding.quantity
+        unrealized_pl = market_value - cost_basis if price is not None else None
+        unrealized_pct = (
+            unrealized_pl / cost_basis * 100 if unrealized_pl is not None and cost_basis else None
+        )
+        total_value += market_value
+        total_cost += cost_basis
+        rows.append(
+            {
+                "holding": holding,
+                "price": price,
+                "market_value": market_value,
+                "cost_basis": cost_basis,
+                "unrealized_pl": unrealized_pl,
+                "unrealized_pct": unrealized_pct,
+            }
+        )
+
+    total_realized_pl = sum(t.realized_pl for t in closed)
+    total_unrealized_pl = total_value - total_cost
+
+    selected_row = next((r for r in rows if r["holding"].symbol == selected_symbol), None)
+    selected_history = fetch_history(selected_symbol, period=period) if selected_symbol else None
+
+    return {
+        "rows": rows,
+        "closed": closed,
+        "snapshots": snapshots,
+        "snapshot_labels": [s.taken_at.strftime("%m-%d %H:%M") for s in snapshots],
+        "total_value": total_value,
+        "total_cost": total_cost,
+        "total_realized_pl": total_realized_pl,
+        "total_unrealized_pl": total_unrealized_pl,
+        "selected_symbol": selected_symbol,
+        "selected_row": selected_row,
+        "selected_history": selected_history,
+        "period": period,
+        "error": error,
+    }
+
+
+@app.route("/portfolio")
+def portfolio():
+    selected_symbol = request.args.get("selected", "").strip().upper() or None
+    period = request.args.get("period", "6mo")
+    return render_template("portfolio.html", **_portfolio_context(selected_symbol, period))
+
+
+@app.route("/portfolio/buy", methods=["POST"])
+def buy_holding():
+    symbol = request.form.get("symbol", "").strip().upper()
+    quantity = request.form.get("quantity", type=float)
+    price = request.form.get("price", type=float)
+
+    if not symbol or quantity is None or quantity <= 0:
+        return render_template(
+            "portfolio.html", **_portfolio_context(error="Enter a symbol and a positive quantity.")
+        )
+    if not symbol_exists(symbol):
+        return render_template(
+            "portfolio.html", **_portfolio_context(error=f"Could not find symbol '{symbol}'.")
+        )
+
+    if price is None:
+        price = _current_price(symbol)
+    if price is None:
+        return render_template(
+            "portfolio.html",
+            **_portfolio_context(error=f"Could not fetch a price for '{symbol}'; enter one manually."),
+        )
+
+    holding = Holding.query.filter_by(symbol=symbol).first()
+    if holding:
+        new_qty = holding.quantity + quantity
+        holding.avg_cost = (holding.quantity * holding.avg_cost + quantity * price) / new_qty
+        holding.quantity = new_qty
+        holding.updated_at = datetime.now(timezone.utc)
+    else:
+        db.session.add(Holding(symbol=symbol, quantity=quantity, avg_cost=price))
+    db.session.commit()
+    return redirect(url_for("portfolio", selected=symbol))
+
+
+@app.route("/portfolio/<int:holding_id>/sell", methods=["POST"])
+def sell_holding(holding_id):
+    holding = Holding.query.get_or_404(holding_id)
+    quantity = request.form.get("quantity", type=float)
+    price = request.form.get("price", type=float)
+
+    if quantity is None or quantity <= 0 or quantity > holding.quantity:
+        return render_template(
+            "portfolio.html",
+            **_portfolio_context(
+                selected_symbol=holding.symbol,
+                error=f"Invalid quantity. You hold {holding.quantity} shares of {holding.symbol}.",
+            ),
+        )
+
+    if price is None:
+        price = _current_price(holding.symbol)
+    if price is None:
+        return render_template(
+            "portfolio.html",
+            **_portfolio_context(
+                selected_symbol=holding.symbol,
+                error=f"Could not fetch a price for '{holding.symbol}'; enter one manually.",
+            ),
+        )
+
+    realized_pl = (price - holding.avg_cost) * quantity
+    db.session.add(
+        RealizedTrade(
+            symbol=holding.symbol,
+            quantity=quantity,
+            avg_cost=holding.avg_cost,
+            sell_price=price,
+            realized_pl=realized_pl,
+        )
+    )
+
+    symbol = holding.symbol
+    if quantity == holding.quantity:
+        db.session.delete(holding)
+        symbol = None
+    else:
+        holding.quantity -= quantity
+        holding.updated_at = datetime.now(timezone.utc)
+
+    db.session.commit()
+    return redirect(url_for("portfolio", **({"selected": symbol} if symbol else {})))
 
 
 if __name__ == "__main__":

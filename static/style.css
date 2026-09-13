@@ -83,6 +83,12 @@ body {
 .ticker-table tr.selected { background: #eef3ff; }
 .detail-meta { color: #8a8f98; font-size: 0.85rem; margin: -4px 0 12px; }
 .inline-form { display: inline; margin-left: 8px; }
+.portfolio-summary {
+  display: flex;
+  gap: 24px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
 @media (max-width: 720px) {
   .split-view { flex-direction: column; height: auto; }
   .list-pane {
