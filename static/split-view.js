@@ -41,7 +41,11 @@
       })
       .then((html) => {
         pane.innerHTML = html;
-        renderChart(pane);
+        try {
+          renderChart(pane);
+        } catch (e) {
+          console.error("chart render failed", e);
+        }
       })
       .catch(() => {
         pane.innerHTML = '<p class="error">Could not load details. Try again.</p>';
@@ -73,6 +77,11 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     const pane = getPane();
-    if (pane) renderChart(pane);
+    if (!pane) return;
+    try {
+      renderChart(pane);
+    } catch (e) {
+      console.error("chart render failed", e);
+    }
   });
 })();

@@ -1,3 +1,5 @@
+import math
+
 import yfinance as yf
 
 
@@ -29,6 +31,9 @@ def fetch_history(symbol, period="6mo", interval="1d"):
         return []
 
     return [
-        {"date": ts.strftime("%Y-%m-%d"), "close": round(row["Close"], 2)}
+        {
+            "date": ts.strftime("%Y-%m-%d"),
+            "close": None if math.isnan(row["Close"]) else round(row["Close"], 2),
+        }
         for ts, row in hist.iterrows()
     ]
