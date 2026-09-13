@@ -56,31 +56,43 @@ body {
 }
 .split-view {
   display: flex;
-  gap: 36px;
-  align-items: flex-start;
+  align-items: stretch;
+  height: 72vh;
+  min-height: 420px;
 }
 .list-pane {
-  flex: 1 1 380px;
+  flex: 1 1 320px;
   min-width: 0;
-  background: #eef1f4;
-  border-radius: 8px;
-  padding: 10px;
+  overflow-y: auto;
+  border-right: 1px solid #dde1e6;
+  padding-right: 16px;
 }
 .detail-pane {
   flex: 2 1 600px;
   min-width: 0;
+  overflow-y: auto;
+  padding-left: 24px;
+}
+.list-pane .ticker-table { border-radius: 0; }
+.list-pane .ticker-table thead th {
+  position: sticky;
+  top: 0;
   background: #fff;
-  border-radius: 8px;
-  padding: 16px 20px;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 4px rgba(20, 22, 25, 0.08);
+  z-index: 1;
 }
 .ticker-table tr.selected { background: #eef3ff; }
 .detail-meta { color: #8a8f98; font-size: 0.85rem; margin: -4px 0 12px; }
 .inline-form { display: inline; margin-left: 8px; }
 @media (max-width: 720px) {
-  .split-view { flex-direction: column; }
-  .list-pane, .detail-pane { width: 100%; }
+  .split-view { flex-direction: column; height: auto; }
+  .list-pane {
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid #dde1e6;
+    padding-right: 0;
+    padding-bottom: 12px;
+  }
+  .detail-pane { padding-left: 0; padding-top: 16px; overflow-y: visible; }
 }
 h1 { margin-top: 0; }
 .add-ticker-form, .alert-form {
