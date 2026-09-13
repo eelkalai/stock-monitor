@@ -9,6 +9,8 @@ POLL_INTERVAL_SECONDS = 60
 
 
 def poll_prices(app):
+    if not app.config.get("POLLING_ENABLED", True):
+        return
     with app.app_context():
         for ticker in Ticker.query.all():
             price, change_pct = fetch_quote(ticker.symbol)

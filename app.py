@@ -13,6 +13,8 @@ def create_app():
     app = Flask(__name__)
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(BASE_DIR, 'stock_monitor.db')}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["POLLING_ENABLED"] = True
+
     db.init_app(app)
 
     with app.app_context():
@@ -103,6 +105,17 @@ def notifications():
 @app.route("/api/notifications/unread-count")
 def unread_count():
     return jsonify({"count": Notification.query.filter_by(read=False).count()})
+
+
+@app.context_processor
+def inject_polling_state():
+    return {"polling_enabled": app.config["POLLING_ENABLED"]}
+
+
+@app.route("/settings/polling/toggle", methods=["POST"])
+def toggle_polling():
+    app.config["POLLING_ENABLED"] = not app.config["POLLING_ENABLED"]
+    return redirect(request.referrer or url_for("dashboard"))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,11 @@
       Alerts
       {% if unread_count %}<span class="badge">{{ unread_count }}</span>{% endif %}
     </a>
+    <form action="{{ url_for('toggle_polling') }}" method="post" class="polling-toggle">
+      <button type="submit" class="switch {{ 'on' if polling_enabled else 'off' }}">
+        Live updates: {{ 'On' if polling_enabled else 'Off' }}
+      </button>
+    </form>
   </header>
   <main class="container">
     {% block content %}{% endblock %}
