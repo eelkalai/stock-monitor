@@ -23,25 +23,41 @@
   {% if ran %}
     <h2>Results: {{ ran }}</h2>
     {% if results %}
-    <table class="ticker-table">
-      <thead>
-        <tr><th>Symbol</th><th>Price</th><th>Change</th><th>Note</th></tr>
-      </thead>
-      <tbody>
-        {% for r in results %}
-        <tr>
-          <td>{{ r.symbol }}</td>
-          <td>{% if r.price is not none %}${{ "%.2f"|format(r.price) }}{% else %}—{% endif %}</td>
-          <td class="{{ 'up' if (r.change_pct or 0) >= 0 else 'down' }}">
-            {% if r.change_pct is not none %}{{ "%.2f"|format(r.change_pct) }}%{% else %}—{% endif %}
-          </td>
-          <td>{{ r.note or "" }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="split-view">
+      <div class="list-pane" id="list-pane">
+        <table class="ticker-table">
+          <thead>
+            <tr><th>Symbol</th><th>Price</th><th>Change</th><th>Note</th></tr>
+          </thead>
+          <tbody>
+            {% for r in results %}
+            <tr class="{{ 'selected' if r.symbol == selected_symbol }}">
+              <td><a class="stock-link" href="{{ url_for('stock_fragment', symbol=r.symbol, origin='screeners') }}">{{ r.symbol }}</a></td>
+              <td>{% if r.price is not none %}${{ "%.2f"|format(r.price) }}{% else %}—{% endif %}</td>
+              <td class="{{ 'up' if (r.change_pct or 0) >= 0 else 'down' }}">
+                {% if r.change_pct is not none %}{{ "%.2f"|format(r.change_pct) }}%{% else %}—{% endif %}
+              </td>
+              <td>{{ r.note or "" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="detail-pane" id="detail-pane">
+        {% if selected_symbol %}{% include "_stock_detail.html" %}
+        {% else %}<p class="empty">Select a result to see details.</p>{% endif %}
+      </div>
+    </div>
     {% else %}
     <p class="empty">No results.</p>
     {% endif %}
+  {% elif selected_symbol %}
+    <div class="split-view">
+      <div class="detail-pane" id="detail-pane">
+        {% include "_stock_detail.html" %}
+      </div>
+    </div>
   {% endif %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="{{ url_for('static', filename='split-view.js') }}" defer></script>
 {% endblock %}

@@ -4,6 +4,7 @@
   <h1>Watchlist</h1>
 
   <form class="add-ticker-form" method="post" action="{{ url_for('add_ticker') }}">
+    <input type="hidden" name="next" value="{{ url_for('dashboard') }}{{ '?selected=' + selected_symbol if selected_symbol }}">
     <input type="text" name="symbol" placeholder="Add symbol (e.g. AAPL)" autocomplete="off" required>
     <button type="submit">Add</button>
   </form>
@@ -11,29 +12,40 @@
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
   {% if tickers %}
-  <table class="ticker-table">
-    <thead>
-      <tr><th>Symbol</th><th>Price</th><th>Change</th><th>Updated</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for t in tickers %}
-      <tr>
-        <td><a href="{{ url_for('ticker_detail', ticker_id=t.id) }}">{{ t.symbol }}</a></td>
-        <td>{% if t.last_price is not none %}${{ "%.2f"|format(t.last_price) }}{% else %}—{% endif %}</td>
-        <td class="{{ 'up' if (t.last_change_pct or 0) >= 0 else 'down' }}">
-          {% if t.last_change_pct is not none %}{{ "%.2f"|format(t.last_change_pct) }}%{% else %}—{% endif %}
-        </td>
-        <td>{{ t.updated_at.strftime('%H:%M:%S') if t.updated_at else 'pending...' }}</td>
-        <td>
-          <form method="post" action="{{ url_for('delete_ticker', ticker_id=t.id) }}">
-            <button type="submit" class="link-btn">remove</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="split-view">
+    <div class="list-pane" id="list-pane">
+      <table class="ticker-table">
+        <thead>
+          <tr><th>Symbol</th><th>Price</th><th>Change</th><th>Updated</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for t in tickers %}
+          <tr class="{{ 'selected' if t.symbol == selected_symbol }}">
+            <td><a class="stock-link" href="{{ url_for('stock_fragment', symbol=t.symbol, origin='dashboard') }}">{{ t.symbol }}</a></td>
+            <td>{% if t.last_price is not none %}${{ "%.2f"|format(t.last_price) }}{% else %}—{% endif %}</td>
+            <td class="{{ 'up' if (t.last_change_pct or 0) >= 0 else 'down' }}">
+              {% if t.last_change_pct is not none %}{{ "%.2f"|format(t.last_change_pct) }}%{% else %}—{% endif %}
+            </td>
+            <td>{{ t.updated_at.strftime('%H:%M:%S') if t.updated_at else 'pending...' }}</td>
+            <td>
+              <form method="post" action="{{ url_for('delete_ticker', ticker_id=t.id) }}">
+                <input type="hidden" name="next" value="{{ url_for('dashboard') }}{{ '?selected=' + selected_symbol if selected_symbol }}">
+                <button type="submit" class="link-btn">remove</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="detail-pane" id="detail-pane">
+      {% if selected_symbol %}{% include "_stock_detail.html" %}
+      {% else %}<p class="empty">Select a stock to see details.</p>{% endif %}
+    </div>
+  </div>
   {% else %}
   <p class="empty">No tickers yet. Add one above to start monitoring.</p>
   {% endif %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="{{ url_for('static', filename='split-view.js') }}" defer></script>
 {% endblock %}
