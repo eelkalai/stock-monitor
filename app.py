@@ -3,12 +3,22 @@ from datetime import datetime, timezone
 
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 
-from models import Alert, Holding, Notification, PortfolioSnapshot, RealizedTrade, Ticker, db
+from models import (
+    Alert,
+    Holding,
+    Notification,
+    PortfolioSnapshot,
+    RealizedTrade,
+    RecentSearch,
+    Ticker,
+    db,
+)
 from scheduler import start_scheduler
 from screeners import list_screeners, run_screener
 from stock_data import fetch_history, fetch_quote, symbol_exists
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+RECENT_SEARCH_LIMIT = 10
 
 
 def create_app():
@@ -56,6 +66,25 @@ def stock_fragment(symbol):
     return render_template("_stock_detail.html", **_stock_detail_context(symbol, period, origin))
 
 
+def _recent_searches():
+    return RecentSearch.query.order_by(RecentSearch.searched_at.desc()).all()
+
+
+def _render_error_page(origin, error):
+    if origin == "screeners":
+        return render_template("screeners.html", screener_names=list_screeners(), error=error)
+    if origin == "portfolio":
+        return render_template("portfolio.html", **_portfolio_context(error=error))
+    tickers = Ticker.query.order_by(Ticker.symbol).all()
+    return render_template(
+        "dashboard.html",
+        tickers=tickers,
+        unread_count=Notification.query.filter_by(read=False).count(),
+        recent_searches=_recent_searches(),
+        error=error,
+    )
+
+
 @app.route("/")
 def dashboard():
     tickers = Ticker.query.order_by(Ticker.symbol).all()
@@ -70,9 +99,37 @@ def dashboard():
         "dashboard.html",
         tickers=tickers,
         unread_count=unread_count,
+        recent_searches=_recent_searches(),
         selected_symbol=selected_symbol,
         **detail_ctx,
     )
+
+
+@app.route("/search", methods=["POST"])
+def search_stock():
+    symbol = request.form.get("symbol", "").strip().upper()
+    if not symbol:
+        return redirect(url_for("dashboard"))
+    if not symbol_exists(symbol):
+        return _render_error_page("dashboard", f"Could not find symbol '{symbol}'.")
+
+    price, change_pct = fetch_quote(symbol)
+    existing = RecentSearch.query.filter_by(symbol=symbol).first()
+    if existing:
+        existing.price = price
+        existing.change_pct = change_pct
+        existing.searched_at = datetime.now(timezone.utc)
+    else:
+        db.session.add(RecentSearch(symbol=symbol, price=price, change_pct=change_pct))
+    db.session.commit()
+
+    overflow = _recent_searches()[RECENT_SEARCH_LIMIT:]
+    for stale in overflow:
+        db.session.delete(stale)
+    if overflow:
+        db.session.commit()
+
+    return redirect(url_for("dashboard", selected=symbol))
 
 
 @app.route("/tickers", methods=["POST"])
@@ -85,18 +142,7 @@ def add_ticker():
 
     if not Ticker.query.filter_by(symbol=symbol).first():
         if not symbol_exists(symbol):
-            error = f"Could not find symbol '{symbol}'."
-            if origin == "screeners":
-                return render_template(
-                    "screeners.html", screener_names=list_screeners(), error=error
-                )
-            tickers = Ticker.query.order_by(Ticker.symbol).all()
-            return render_template(
-                "dashboard.html",
-                tickers=tickers,
-                unread_count=Notification.query.filter_by(read=False).count(),
-                error=error,
-            )
+            return _render_error_page(origin, f"Could not find symbol '{symbol}'.")
         price, change_pct = fetch_quote(symbol)
         db.session.add(
             Ticker(symbol=symbol, last_price=price, last_change_pct=change_pct)
@@ -270,23 +316,18 @@ def buy_holding():
     symbol = request.form.get("symbol", "").strip().upper()
     quantity = request.form.get("quantity", type=float)
     price = request.form.get("price", type=float)
+    next_url = request.form.get("next")
+    origin = request.form.get("origin", "portfolio")
 
     if not symbol or quantity is None or quantity <= 0:
-        return render_template(
-            "portfolio.html", **_portfolio_context(error="Enter a symbol and a positive quantity.")
-        )
+        return _render_error_page(origin, "Enter a symbol and a positive quantity.")
     if not symbol_exists(symbol):
-        return render_template(
-            "portfolio.html", **_portfolio_context(error=f"Could not find symbol '{symbol}'.")
-        )
+        return _render_error_page(origin, f"Could not find symbol '{symbol}'.")
 
     if price is None:
         price = _current_price(symbol)
     if price is None:
-        return render_template(
-            "portfolio.html",
-            **_portfolio_context(error=f"Could not fetch a price for '{symbol}'; enter one manually."),
-        )
+        return _render_error_page(origin, f"Could not fetch a price for '{symbol}'; enter one manually.")
 
     holding = Holding.query.filter_by(symbol=symbol).first()
     if holding:
@@ -297,7 +338,7 @@ def buy_holding():
     else:
         db.session.add(Holding(symbol=symbol, quantity=quantity, avg_cost=price))
     db.session.commit()
-    return redirect(url_for("portfolio", selected=symbol))
+    return redirect(next_url or url_for("portfolio", selected=symbol))
 
 
 @app.route("/portfolio/<int:holding_id>/sell", methods=["POST"])

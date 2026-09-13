@@ -26,6 +26,16 @@
 
 <canvas id="chart" height="90" data-history='{{ history|tojson }}' data-label="{{ symbol }} close"></canvas>
 
+<h3>Buy</h3>
+<form class="alert-form" method="post" action="{{ url_for('buy_holding') }}">
+  <input type="hidden" name="symbol" value="{{ symbol }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <input type="hidden" name="origin" value="{{ origin }}">
+  <input type="number" step="0.0001" min="0" name="quantity" placeholder="Quantity" required>
+  <input type="number" step="0.01" min="0" name="price" placeholder="Price (default: current)">
+  <button type="submit">Buy</button>
+</form>
+
 {% if ticker %}
   <h3>Alerts</h3>
   <form class="alert-form" method="post" action="{{ url_for('add_alert', ticker_id=ticker.id) }}">

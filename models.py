@@ -54,3 +54,11 @@ class PortfolioSnapshot(db.Model):
     taken_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     total_value = db.Column(db.Float, nullable=False)
     total_cost = db.Column(db.Float, nullable=False)
+
+
+class RecentSearch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    symbol = db.Column(db.String(16), unique=True, nullable=False)
+    price = db.Column(db.Float)
+    change_pct = db.Column(db.Float)
+    searched_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
