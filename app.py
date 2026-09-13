@@ -4,6 +4,7 @@ from flask import Flask, jsonify, redirect, render_template, request, url_for
 
 from models import Alert, Notification, Ticker, db
 from scheduler import start_scheduler
+from screeners import list_screeners, run_screener
 from stock_data import fetch_history, fetch_quote, symbol_exists
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -116,6 +117,23 @@ def inject_polling_state():
 def toggle_polling():
     app.config["POLLING_ENABLED"] = not app.config["POLLING_ENABLED"]
     return redirect(request.referrer or url_for("dashboard"))
+
+
+@app.route("/screeners")
+def screeners():
+    return render_template("screeners.html", screener_names=list_screeners())
+
+
+@app.route("/screeners/<name>/run", methods=["POST"])
+def run_screener_route(name):
+    results, error = run_screener(name)
+    return render_template(
+        "screeners.html",
+        screener_names=list_screeners(),
+        ran=name,
+        results=results,
+        error=error,
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Screeners - Stock Monitor{% endblock %}
+{% block content %}
+  <h1>Screeners</h1>
+
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  {% if screener_names %}
+  <ul class="screener-list">
+    {% for name in screener_names %}
+    <li>
+      <span>{{ name }}</span>
+      <form method="post" action="{{ url_for('run_screener_route', name=name) }}">
+        <button type="submit">Run</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">No screener scripts found in scripts/.</p>
+  {% endif %}
+
+  {% if ran %}
+    <h2>Results: {{ ran }}</h2>
+    {% if results %}
+    <table class="ticker-table">
+      <thead>
+        <tr><th>Symbol</th><th>Price</th><th>Change</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+        {% for r in results %}
+        <tr>
+          <td>{{ r.symbol }}</td>
+          <td>{% if r.price is not none %}${{ "%.2f"|format(r.price) }}{% else %}—{% endif %}</td>
+          <td class="{{ 'up' if (r.change_pct or 0) >= 0 else 'down' }}">
+            {% if r.change_pct is not none %}{{ "%.2f"|format(r.change_pct) }}%{% else %}—{% endif %}
+          </td>
+          <td>{{ r.note or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="empty">No results.</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

@@ -122,3 +122,14 @@ canvas { background: #fff; border-radius: 8px; padding: 10px; margin-bottom: 24p
 }
 .alert-list li.inactive { color: #8a8f98; text-decoration: line-through; }
 .notification-list .time { color: #8a8f98; margin-right: 10px; font-size: 0.85rem; }
+.screener-list { list-style: none; padding: 0; }
+.screener-list li {
+  background: #fff;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.screener-list form { margin: 0; }
