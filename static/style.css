@@ -56,16 +56,24 @@ body {
 }
 .split-view {
   display: flex;
-  gap: 20px;
+  gap: 36px;
   align-items: flex-start;
 }
-.list-pane { flex: 1 1 380px; min-width: 0; }
+.list-pane {
+  flex: 1 1 380px;
+  min-width: 0;
+  background: #eef1f4;
+  border-radius: 8px;
+  padding: 10px;
+}
 .detail-pane {
   flex: 2 1 600px;
   min-width: 0;
   background: #fff;
   border-radius: 8px;
   padding: 16px 20px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(20, 22, 25, 0.08);
 }
 .ticker-table tr.selected { background: #eef3ff; }
 .detail-meta { color: #8a8f98; font-size: 0.85rem; margin: -4px 0 12px; }
