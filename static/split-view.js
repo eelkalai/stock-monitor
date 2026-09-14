@@ -25,8 +25,17 @@
         ],
       },
       options: {
+        interaction: { mode: "index", intersect: false },
         scales: { x: { ticks: { maxTicksLimit: 10 } } },
-        plugins: { legend: { display: false } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `$${ctx.parsed.y.toFixed(2)}`,
+            },
+          },
+        },
+        elements: { point: { hoverRadius: 5, hitRadius: 12 } },
       },
     });
   }
@@ -75,7 +84,51 @@
     }
   });
 
+  const SPLIT_WIDTH_KEY = "stockMonitorListPaneWidth";
+
+  function initResizer() {
+    const divider = document.getElementById("split-divider");
+    const listPane = document.getElementById("list-pane");
+    const container = divider && divider.closest(".split-view");
+    if (!divider || !listPane || !container) return;
+
+    let savedWidth = null;
+    try {
+      savedWidth = parseFloat(localStorage.getItem(SPLIT_WIDTH_KEY));
+    } catch (e) {}
+    if (savedWidth) listPane.style.flex = `0 0 ${savedWidth}px`;
+
+    function onMouseMove(event) {
+      const rect = container.getBoundingClientRect();
+      const min = 160;
+      const max = rect.width - 240;
+      const width = Math.min(Math.max(event.clientX - rect.left, min), Math.max(min, max));
+      listPane.style.flex = `0 0 ${width}px`;
+    }
+
+    function onMouseUp() {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      divider.classList.remove("dragging");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try {
+        localStorage.setItem(SPLIT_WIDTH_KEY, listPane.getBoundingClientRect().width);
+      } catch (e) {}
+    }
+
+    divider.addEventListener("mousedown", function (event) {
+      event.preventDefault();
+      divider.classList.add("dragging");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      document.addEventListener("mousemove", onMouseMove);
+      document.addEventListener("mouseup", onMouseUp);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
+    initResizer();
     const pane = getPane();
     if (!pane) return;
     try {

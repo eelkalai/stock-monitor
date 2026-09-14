@@ -390,6 +390,15 @@ def sell_holding(holding_id):
     return redirect(url_for("portfolio", **({"selected": symbol} if symbol else {})))
 
 
+@app.route("/portfolio/closed/<int:trade_id>/delete", methods=["POST"])
+def delete_realized_trade(trade_id):
+    trade = RealizedTrade.query.get_or_404(trade_id)
+    next_url = request.form.get("next")
+    db.session.delete(trade)
+    db.session.commit()
+    return redirect(next_url or url_for("portfolio"))
+
+
 if __name__ == "__main__":
     start_scheduler(app)
     app.run(debug=True, use_reloader=False)

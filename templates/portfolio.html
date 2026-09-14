@@ -50,6 +50,7 @@
         </tbody>
       </table>
     </div>
+    <div class="split-divider" id="split-divider"></div>
     <div class="detail-pane" id="detail-pane">
       {% if selected_row %}
         <h2>{{ selected_row.holding.symbol }}</h2>
@@ -81,7 +82,7 @@
   {% if closed %}
   <table class="ticker-table">
     <thead>
-      <tr><th>Symbol</th><th>Qty</th><th>Avg cost</th><th>Sell price</th><th>Realized P&amp;L</th><th>Sold</th></tr>
+      <tr><th>Symbol</th><th>Qty</th><th>Avg cost</th><th>Sell price</th><th>Realized P&amp;L</th><th>Sold</th><th></th></tr>
     </thead>
     <tbody>
       {% for t in closed %}
@@ -92,6 +93,12 @@
         <td>${{ "%.2f"|format(t.sell_price) }}</td>
         <td class="{{ 'up' if t.realized_pl >= 0 else 'down' }}">${{ "%.2f"|format(t.realized_pl) }}</td>
         <td>{{ t.sold_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          <form method="post" action="{{ url_for('delete_realized_trade', trade_id=t.id) }}" class="inline-form">
+            <input type="hidden" name="next" value="{{ url_for('portfolio', selected=selected_symbol) if selected_symbol else url_for('portfolio') }}">
+            <button type="submit" class="link-btn">remove</button>
+          </form>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
@@ -115,7 +122,18 @@
             { label: "Cost", data: JSON.parse(canvas.dataset.costs), borderColor: "#8a8f98", pointRadius: 0, tension: 0.15, borderDash: [4, 4] },
           ],
         },
-        options: { scales: { x: { ticks: { maxTicksLimit: 8 } } } },
+        options: {
+          interaction: { mode: "index", intersect: false },
+          scales: { x: { ticks: { maxTicksLimit: 8 } } },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.dataset.label}: $${ctx.parsed.y.toFixed(2)}`,
+              },
+            },
+          },
+          elements: { point: { hoverRadius: 5, hitRadius: 12 } },
+        },
       });
     })();
   </script>

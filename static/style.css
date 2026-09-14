@@ -62,16 +62,34 @@ body {
 }
 .list-pane {
   flex: 1 1 320px;
-  min-width: 0;
+  min-width: 160px;
   overflow-y: auto;
-  border-right: 1px solid #dde1e6;
+  overflow-x: auto;
   padding-right: 16px;
+}
+.split-divider {
+  flex: 0 0 9px;
+  position: relative;
+  cursor: col-resize;
+}
+.split-divider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: #dde1e6;
+}
+.split-divider:hover::after,
+.split-divider.dragging::after {
+  background: #2f6fed;
 }
 .detail-pane {
   flex: 2 1 600px;
   min-width: 0;
   overflow-y: auto;
-  padding-left: 24px;
+  padding-left: 16px;
 }
 .list-pane .ticker-table { border-radius: 0; }
 .list-pane .ticker-table thead th {
@@ -93,11 +111,12 @@ body {
   .split-view { flex-direction: column; height: auto; }
   .list-pane {
     max-height: 300px;
-    border-right: none;
+    flex-basis: auto !important;
     border-bottom: 1px solid #dde1e6;
     padding-right: 0;
     padding-bottom: 12px;
   }
+  .split-divider { display: none; }
   .detail-pane { padding-left: 0; padding-top: 16px; overflow-y: visible; }
 }
 h1 { margin-top: 0; }
