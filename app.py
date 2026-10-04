@@ -1,3 +1,4 @@
+import itertools
 import os
 from datetime import datetime, timezone
 
@@ -13,12 +14,17 @@ from models import (
     Ticker,
     db,
 )
+from analyzers import list_analyzers, run_analyzer
 from scheduler import start_scheduler
 from screeners import list_screeners, run_screener
 from stock_data import fetch_history, fetch_quote, symbol_exists
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RECENT_SEARCH_LIMIT = 10
+
+_analysis_runs = {}  # symbol -> {"analyzer", "result", "error", "ran_at"} (in-memory, resets on restart)
+_screener_runs = {}  # run_id -> {"name", "tab_label", "results", "error", "params", "ran_at"} (in-memory)
+_screener_run_seq = itertools.count(1)  # generates unique run_ids, so re-running a script opens another tab
 
 
 def create_app():
@@ -38,7 +44,13 @@ def create_app():
 app = create_app()
 
 
-def _stock_detail_context(symbol, period, origin):
+def _next_url(origin, symbol, **extra):
+    params = {"selected": symbol}
+    params.update({k: v for k, v in extra.items() if v})
+    return url_for(origin, **params)
+
+
+def _stock_detail_context(symbol, period, origin, extra_params=None):
     symbol = symbol.strip().upper()
     origin = origin if origin in ("dashboard", "screeners") else "dashboard"
     ticker = Ticker.query.filter_by(symbol=symbol).first()
@@ -55,7 +67,18 @@ def _stock_detail_context(symbol, period, origin):
         "history": history,
         "period": period,
         "origin": origin,
-        "next_url": url_for(origin) + f"?selected={symbol}",
+        "next_url": _next_url(origin, symbol, **(extra_params or {})),
+    }
+
+
+def _analysis_context(symbol, origin="dashboard", extra_params=None):
+    symbol = symbol.strip().upper()
+    origin = origin if origin in ("dashboard", "screeners") else "dashboard"
+    return {
+        "symbol": symbol,
+        "analyzer_names": list_analyzers(),
+        "analysis": _analysis_runs.get(symbol),
+        "next_url": _next_url(origin, symbol, **(extra_params or {})),
     }
 
 
@@ -66,13 +89,47 @@ def stock_fragment(symbol):
     return render_template("_stock_detail.html", **_stock_detail_context(symbol, period, origin))
 
 
+@app.route("/stocks/<symbol>/analysis")
+def stock_analysis_fragment(symbol):
+    origin = request.args.get("origin", "dashboard")
+    tab = request.args.get("tab")
+    return render_template(
+        "_stock_analysis.html",
+        **_analysis_context(symbol, origin, {"tab": tab} if tab else None),
+    )
+
+
+@app.route("/stocks/<symbol>/analyzers/<name>/run", methods=["POST"])
+def run_analyzer_route(symbol, name):
+    symbol = symbol.strip().upper()
+    data, error = run_analyzer(name, symbol)
+    _analysis_runs[symbol] = {
+        "analyzer": name,
+        "result": data,
+        "error": error,
+        "ran_at": datetime.now(timezone.utc),
+    }
+    next_url = request.form.get("next")
+    return redirect(next_url or url_for("dashboard", selected=symbol))
+
+
 def _recent_searches():
     return RecentSearch.query.order_by(RecentSearch.searched_at.desc()).all()
 
 
 def _render_error_page(origin, error):
     if origin == "screeners":
-        return render_template("screeners.html", screener_names=list_screeners(), error=error)
+        return render_template(
+            "screeners.html",
+            screener_specs=list_screeners(),
+            open_tabs=[],
+            active_tab=None,
+            run=None,
+            analyzer_names=[],
+            analysis=None,
+            symbol=None,
+            error=error,
+        )
     if origin == "portfolio":
         return render_template("portfolio.html", **_portfolio_context(error=error))
     tickers = Ticker.query.order_by(Ticker.symbol).all()
@@ -90,18 +147,20 @@ def dashboard():
     tickers = Ticker.query.order_by(Ticker.symbol).all()
     unread_count = Notification.query.filter_by(read=False).count()
     selected_symbol = request.args.get("selected", "").strip().upper() or None
-    detail_ctx = (
-        _stock_detail_context(selected_symbol, request.args.get("period", "6mo"), "dashboard")
-        if selected_symbol
-        else {}
-    )
+    if selected_symbol:
+        ctx = {
+            **_analysis_context(selected_symbol, "dashboard"),
+            **_stock_detail_context(selected_symbol, request.args.get("period", "6mo"), "dashboard"),
+        }
+    else:
+        ctx = {"symbol": None}
     return render_template(
         "dashboard.html",
         tickers=tickers,
         unread_count=unread_count,
         recent_searches=_recent_searches(),
         selected_symbol=selected_symbol,
-        **detail_ctx,
+        **ctx,
     )
 
 
@@ -218,30 +277,96 @@ def toggle_polling():
 
 @app.route("/screeners")
 def screeners():
+    specs = list_screeners()
+    open_ids = sorted(_screener_runs, key=lambda rid: _screener_runs[rid]["ran_at"])
+
+    requested_tab = request.args.get("tab")
+    if requested_tab in _screener_runs:
+        active_tab = requested_tab
+    elif open_ids:
+        active_tab = open_ids[-1]
+    else:
+        active_tab = None
+
+    run = _screener_runs.get(active_tab)
     selected_symbol = request.args.get("selected", "").strip().upper() or None
-    detail_ctx = (
-        _stock_detail_context(selected_symbol, request.args.get("period", "6mo"), "screeners")
-        if selected_symbol
-        else {}
-    )
+    period = request.args.get("period", "6mo")
+    extra = {"tab": active_tab} if active_tab else None
+    if selected_symbol:
+        ctx = {
+            **_analysis_context(selected_symbol, "screeners", extra),
+            **_stock_detail_context(selected_symbol, period, "screeners", extra),
+        }
+    else:
+        ctx = {"symbol": None}
+
     return render_template(
         "screeners.html",
-        screener_names=list_screeners(),
+        screener_specs=specs,
+        open_tabs=[{"id": rid, **_screener_runs[rid]} for rid in open_ids],
+        active_tab=active_tab,
+        run=run,
         selected_symbol=selected_symbol,
-        **detail_ctx,
+        **ctx,
     )
+
+
+def _coerce_param(value, param_type):
+    if value is None:
+        return None
+    if param_type == "number":
+        try:
+            f = float(value)
+            return int(f) if f.is_integer() else f
+        except (TypeError, ValueError):
+            return value
+    return value
 
 
 @app.route("/screeners/<name>/run", methods=["POST"])
 def run_screener_route(name):
-    results, error = run_screener(name)
-    return render_template(
-        "screeners.html",
-        screener_names=list_screeners(),
-        ran=name,
-        results=results,
-        error=error,
-    )
+    spec = {s["name"]: s for s in list_screeners()}.get(name)
+    params = {}
+    if spec:
+        for p in spec["params"]:
+            raw = request.form.get(f"param_{p['name']}")
+            if raw is None or raw == "":
+                raw = p.get("default")
+            params[p["name"]] = _coerce_param(raw, p.get("type"))
+
+    results, error = run_screener(name, params)
+
+    display_name = spec["display_name"] if spec else name
+    if params:
+        summary = ", ".join(f"{k}={v}" for k, v in params.items())
+        tab_label = f"{display_name} ({summary})"
+    else:
+        tab_label = display_name
+
+    run_id = f"r{next(_screener_run_seq)}"
+    _screener_runs[run_id] = {
+        "name": name,
+        "tab_label": tab_label,
+        "results": results,
+        "error": error,
+        "params": params,
+        "ran_at": datetime.now(timezone.utc),
+    }
+    redirect_params = {"tab": run_id}
+    selected = request.form.get("selected")
+    if selected:
+        redirect_params["selected"] = selected
+    return redirect(url_for("screeners", **redirect_params))
+
+
+@app.route("/screeners/<run_id>/close", methods=["POST"])
+def close_screener_tab(run_id):
+    _screener_runs.pop(run_id, None)
+    redirect_params = {}
+    selected = request.form.get("selected")
+    if selected:
+        redirect_params["selected"] = selected
+    return redirect(url_for("screeners", **redirect_params))
 
 
 def _current_price(symbol):

@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 .venv/
 stock_monitor.db
+.claude/specs/

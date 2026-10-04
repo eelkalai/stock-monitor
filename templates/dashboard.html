@@ -27,7 +27,7 @@
         <tbody>
           {% for t in tickers %}
           <tr class="{{ 'selected' if t.symbol == selected_symbol }}">
-            <td><a class="stock-link" href="{{ url_for('stock_fragment', symbol=t.symbol, origin='dashboard') }}">{{ t.symbol }}</a></td>
+            <td><a class="stock-link" data-symbol="{{ t.symbol }}" href="{{ url_for('stock_fragment', symbol=t.symbol, origin='dashboard') }}">{{ t.symbol }}</a></td>
             <td>{% if t.last_price is not none %}${{ "%.2f"|format(t.last_price) }}{% else %}—{% endif %}</td>
             <td class="{{ 'up' if (t.last_change_pct or 0) >= 0 else 'down' }}">
               {% if t.last_change_pct is not none %}{{ "%.2f"|format(t.last_change_pct) }}%{% else %}—{% endif %}
@@ -56,7 +56,7 @@
         <tbody>
           {% for s in recent_searches %}
           <tr class="{{ 'selected' if s.symbol == selected_symbol }}">
-            <td><a class="stock-link" href="{{ url_for('stock_fragment', symbol=s.symbol, origin='dashboard') }}">{{ s.symbol }}</a></td>
+            <td><a class="stock-link" data-symbol="{{ s.symbol }}" href="{{ url_for('stock_fragment', symbol=s.symbol, origin='dashboard') }}">{{ s.symbol }}</a></td>
             <td>{% if s.price is not none %}${{ "%.2f"|format(s.price) }}{% else %}—{% endif %}</td>
             <td class="{{ 'up' if (s.change_pct or 0) >= 0 else 'down' }}">
               {% if s.change_pct is not none %}{{ "%.2f"|format(s.change_pct) }}%{% else %}—{% endif %}
@@ -73,6 +73,8 @@
       {% if selected_symbol %}{% include "_stock_detail.html" %}
       {% else %}<p class="empty">Select a stock to see details.</p>{% endif %}
     </div>
+    <div class="split-divider" id="split-divider-analysis"></div>
+    <div class="analysis-pane" id="analysis-pane">{% include "_stock_analysis.html" %}</div>
   </div>
   {% else %}
   <p class="empty">No tickers yet. Add one above, or search for a stock to look it up.</p>

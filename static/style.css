@@ -50,7 +50,6 @@ body {
 }
 .switch:hover { opacity: 0.85; }
 .container {
-  max-width: 1150px;
   margin: 0;
   padding: 24px;
 }
@@ -91,6 +90,12 @@ body {
   overflow-y: auto;
   padding-left: 16px;
 }
+.analysis-pane {
+  flex: 2 1 420px;
+  min-width: 0;
+  overflow-y: auto;
+  padding-left: 16px;
+}
 .list-pane .ticker-table { border-radius: 0; }
 .list-pane .ticker-table thead th {
   position: sticky;
@@ -118,6 +123,7 @@ body {
   }
   .split-divider { display: none; }
   .detail-pane { padding-left: 0; padding-top: 16px; overflow-y: visible; }
+  .analysis-pane { padding-left: 0; padding-top: 16px; overflow-y: visible; }
 }
 h1 { margin-top: 0; }
 .add-ticker-form, .alert-form {
@@ -187,14 +193,39 @@ canvas { background: #fff; border-radius: 8px; padding: 10px; margin-bottom: 24p
 }
 .alert-list li.inactive { color: #8a8f98; text-decoration: line-through; }
 .notification-list .time { color: #8a8f98; margin-right: 10px; font-size: 0.85rem; }
-.screener-list { list-style: none; padding: 0; }
-.screener-list li {
-  background: #fff;
-  padding: 10px 12px;
-  border-radius: 6px;
-  margin-bottom: 6px;
+.tab-bar { display: flex; gap: 4px; border-bottom: 1px solid #dde1e6; margin-bottom: 16px; flex-wrap: wrap; }
+.tab {
+  padding: 8px 14px;
+  text-decoration: none;
+  color: #8a8f98;
+  font-weight: 600;
+  border-bottom: 2px solid transparent;
+}
+.tab.active { color: #2f6fed; border-bottom-color: #2f6fed; }
+.tab-item { display: flex; align-items: center; }
+.tab-close-form { margin: 0; }
+.tab-close {
+  background: none;
+  border: none;
+  color: #8a8f98;
+  cursor: pointer;
+  padding: 0 10px 0 0;
+  font-size: 1rem;
+  line-height: 1;
+}
+.tab-close:hover { color: #e5484d; }
+.screener-picker { margin-bottom: 16px; }
+.screener-picker form { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; }
+.param-group { display: contents; }
+.param-group[hidden] { display: none; }
+.param-group input { width: 160px; }
+.analyzer-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.analyzer-picker form { margin: 0; }
+.recommendation { font-weight: 600; }
+.metrics-list { list-style: none; padding: 0; margin: 12px 0; }
+.metrics-list li {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #eef0f2;
 }
-.screener-list form { margin: 0; }

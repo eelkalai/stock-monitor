@@ -1,0 +1,39 @@
+{% if symbol %}
+  <h3>Analysis</h3>
+  {% if analyzer_names %}
+  <div class="analyzer-picker">
+    {% for name in analyzer_names %}
+    <form method="post" action="{{ url_for('run_analyzer_route', symbol=symbol, name=name) }}" class="inline-form">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button type="submit">{{ 'Re-run' if analysis and analysis.analyzer == name else 'Run' }} {{ name }}</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">No analyzer scripts found in analyzers/.</p>
+  {% endif %}
+
+  {% if analysis %}
+    {% if analysis.error %}
+    <p class="error">{{ analysis.error }}</p>
+    {% else %}
+      {% set result = analysis.result %}
+      <p class="recommendation">{{ result.recommendation }}</p>
+      {% if result.summary %}<p class="detail-meta">{{ result.summary }}</p>{% endif %}
+      {% if result.metrics %}
+      <ul class="metrics-list">
+        {% for m in result.metrics %}
+        <li><span>{{ m.label }}</span><strong>{{ m.value }}</strong></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      {% if result.chart %}
+      <canvas id="analysis-chart" height="220" data-chart='{{ result.chart|tojson }}'></canvas>
+      {% endif %}
+    {% endif %}
+  {% else %}
+  <p class="empty">Run an analyzer to see a recommendation for {{ symbol }}.</p>
+  {% endif %}
+{% else %}
+  <p class="empty">Select a stock to see analysis.</p>
+{% endif %}
