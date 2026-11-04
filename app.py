@@ -526,4 +526,4 @@ def delete_realized_trade(trade_id):
 
 if __name__ == "__main__":
     start_scheduler(app)
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=os.environ.get("FLASK_DEBUG") == "1", use_reloader=False)
